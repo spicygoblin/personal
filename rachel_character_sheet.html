@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Character Sheet — IO Psychology PhD</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --hint: #999;
+    --surface: #ffffff;
+    --raised: #f5f4f1;
+    --border: rgba(0,0,0,0.12);
+    --border-md: rgba(0,0,0,0.2);
+    --r-md: 8px;
+    --r-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8e6e0;
+      --muted: #9a9890;
+      --hint: #666;
+      --surface: #1c1c1a;
+      --raised: #252523;
+      --border: rgba(255,255,255,0.1);
+      --border-md: rgba(255,255,255,0.18);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--raised); min-height: 100vh; }
+  .container { max-width: 720px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+  .header { margin-bottom: 2rem; }
+  .header h1 { font-size: 24px; font-weight: 500; letter-spacing: -0.02em; }
+  .header p { font-size: 14px; color: var(--muted); margin-top: 5px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 2rem; }
+  .stat-card { background: var(--surface); border-radius: var(--r-md); padding: 14px; text-align: center; border: 0.5px solid var(--border); }
+  .stat-num { font-size: 24px; font-weight: 500; }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .phase-tabs { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .tab { padding: 7px 16px; border-radius: var(--r-md); border: 0.5px solid var(--border-md); font-size: 13px; cursor: pointer; background: var(--surface); color: var(--muted); transition: all 0.15s; font-family: inherit; }
+  .tab.active { background: var(--ink); color: var(--surface); border-color: var(--ink); font-weight: 500; }
+  .phase-desc { font-size: 13px; color: var(--muted); background: var(--surface); border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 1.5rem; line-height: 1.6; border: 0.5px solid var(--border); }
+  .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--hint); margin-bottom: 10px; }
+  .skill-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px; margin-bottom: 10px; }
+  .skill-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 12px; }
+  .skill-name { font-size: 15px; font-weight: 500; }
+  .skill-meta { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+  .level-badge { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: var(--r-md); white-space: nowrap; flex-shrink: 0; }
+  .xp-row { display: flex; align-items: center; gap: 10px; }
+  .xp-bar-bg { flex: 1; height: 6px; background: var(--raised); border-radius: 3px; overflow: hidden; border: 0.5px solid var(--border); }
+  .xp-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+  .xp-label { font-size: 12px; color: var(--muted); min-width: 70px; text-align: right; }
+  .log-entry { font-size: 13px; color: var(--muted); border-left: 2px solid var(--border-md); padding-left: 10px; margin-top: 10px; line-height: 1.5; }
+  .log-date { font-size: 11px; color: var(--hint); margin-bottom: 2px; }
+  .xp-gain { color: #1D9E75; font-weight: 500; }
+  .log-btn { font-size: 12px; padding: 5px 12px; border-radius: var(--r-md); border: 0.5px solid var(--border-md); background: transparent; color: var(--muted); cursor: pointer; margin-top: 10px; font-family: inherit; transition: all 0.15s; }
+  .log-btn:hover { background: var(--raised); color: var(--ink); }
+  .export-bar { display: flex; gap: 8px; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; }
+  .export-btn { font-size: 12px; padding: 6px 14px; border-radius: var(--r-md); border: 0.5px solid var(--border-md); background: transparent; color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .export-btn:hover { background: var(--raised); color: var(--ink); }
+  .export-label { font-size: 12px; color: var(--hint); }
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+  .modal { background: var(--surface); border-radius: var(--r-lg); border: 0.5px solid var(--border-md); padding: 22px; width: 100%; max-width: 440px; }
+  .modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 5px; }
+  .modal p { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .modal textarea { width: 100%; border: 0.5px solid var(--border-md); border-radius: var(--r-md); padding: 10px 12px; font-size: 14px; font-family: inherit; resize: vertical; background: var(--raised); color: var(--ink); min-height: 80px; }
+  .modal textarea:focus { outline: none; border-color: var(--ink); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+  .btn-primary { padding: 8px 18px; border-radius: var(--r-md); border: none; background: var(--ink); color: var(--surface); font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-secondary { padding: 8px 18px; border-radius: var(--r-md); border: 0.5px solid var(--border-md); background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-secondary:hover { background: var(--raised); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Character sheet</h1>
+    <p>IO Psychology PhD &middot; People analytics track &middot; Autistic woman in tech</p>
+  </div>
+
+  <div class="export-bar">
+    <button class="export-btn" onclick="exportData()">Export data (JSON)</button>
+    <button class="export-btn" onclick="importData()">Import data</button>
+    <span class="export-label">Back up your progress regularly</span>
+  </div>
+
+  <div class="summary-grid" id="summary-grid"></div>
+  <div class="phase-tabs" id="phase-tabs"></div>
+  <div class="phase-desc" id="phase-desc"></div>
+  <div id="skills-container"></div>
+</div>
+
+<div class="modal-overlay" id="modal" style="display:none;">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <p id="modal-prompt"></p>
+    <textarea id="modal-input" placeholder="What did you attempt?"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitLog()">Log attempt (+10 XP)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PHASES = [
+  { id: "y1", label: "Year 1", subtitle: "Convert internships into artifacts and warm relationships — the foundation everything else builds on." },
+  { id: "y2", label: "Year 2", subtitle: "Build the technical layer that differentiates you — IO rigor plus computation is a rare combination." },
+  { id: "y3", label: "Year 3", subtitle: "Job search as a systems problem — track your pipeline explicitly, prep behavioral interviews, and negotiate." },
+];
+
+const SKILLS = {
+  y1: [
+    { id: "artifact", name: "Artifact creation", meta: "Produce one concrete output per internship — analysis, dashboard, write-up, or visualization", color: "#1D9E75", max: 200, prompts: ["Describe what you made. What form is it in — code, doc, deck?", "Who could you show this to and what would they learn from it?"] },
+    { id: "followup", name: "Structured follow-up", meta: "Send a post-meeting email with one takeaway + one question", color: "#378ADD", max: 200, prompts: ["Who did you follow up with? What takeaway did you name?", "What question did you ask them?"] },
+    { id: "sponsor", name: "Sponsor cultivation", meta: "Regular check-ins with your Meta committee member and key mentors", color: "#7F77DD", max: 150, prompts: ["Who did you reach out to? What update did you share?", "What did you ask them about the field?"] },
+    { id: "linkedin", name: "LinkedIn presence", meta: "Post one thing per month — observation, question, or project update", color: "#D85A30", max: 150, prompts: ["What did you post? What was the core idea?", "Was it a question, observation, or update?"] },
+  ],
+  y2: [
+    { id: "nlp", name: "Text analysis / NLP", meta: "Topic modeling, sentiment analysis on organizational text data in R or Python", color: "#1D9E75", max: 300, prompts: ["What technique did you apply? What was the data?", "What did you learn or produce?"] },
+    { id: "portfolio", name: "Public portfolio", meta: "2–3 project write-ups on personal site showing IO + computation", color: "#378ADD", max: 200, prompts: ["What project did you write up? What's the key finding?", "Is it live on your site yet?"] },
+    { id: "practitioner", name: "Practitioner literacy", meta: "Read people analytics leads, SIOP applied content, real-world tooling", color: "#7F77DD", max: 150, prompts: ["What did you read or listen to? What surprised you?", "How does it connect to your dissertation work?"] },
+  ],
+  y3: [
+    { id: "pipeline", name: "Job search pipeline", meta: "Track applications, contacts, follow-ups with explicit stage tracking", color: "#1D9E75", max: 300, prompts: ["What stage did you move something to?", "Where are things dropping off in your pipeline?"] },
+    { id: "behavioral", name: "Behavioral interview prep", meta: "STAR format practice — Situation, Task, Action, Result", color: "#378ADD", max: 200, prompts: ["Which story did you practice? What was the Result?", "How long did it take to tell? Aim for ~90 seconds."] },
+    { id: "negotiation", name: "Negotiation script", meta: "Practice the salary ask once, then silence — that's the whole move", color: "#D85A30", max: 100, prompts: ["Did you practice saying the number out loud?", "What range did you research for your target role?"] },
+  ],
+};
+
+const CROSS = [
+  { id: "distress", name: "Distress tolerance", meta: "Stay in discomfort without fleeing or escalating", color: "#EF9F27", max: 300, prompts: ["What was the uncomfortable situation? What did you do instead of fleeing?", "Did you use a technique? Which one?"] },
+  { id: "repair", name: "Repair", meta: "Reconnect after friction without treating it as catastrophic", color: "#D4537E", max: 300, prompts: ["What was the friction? How did you re-initiate?", "How did it feel after — better or worse than expected?"] },
+  { id: "advocacy", name: "Self-advocacy", meta: "Ask for what you need clearly, without over-apologizing", color: "#7F77DD", max: 300, prompts: ["What did you ask for? Did you apologize before stating the need?", "What happened when you asked?"] },
+  { id: "recognition", name: "Reading others' states", meta: "Notice when someone is off before it becomes a problem", color: "#1D9E75", max: 300, prompts: ["What cue did you notice? How did you respond to it?", "Was your read accurate?"] },
+];
+
+const XP_PER = 10;
+const LEVEL_THRESHOLDS = [0, 30, 70, 120, 180, 250];
+const LEVEL_NAMES = ["Novice", "Apprentice", "Practitioner", "Adept", "Expert", "Master"];
+
+const STORAGE_KEY = "rpg_sheet_standalone_v1";
+
+function getState() {
+  try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : { xp: {}, logs: {} }; }
+  catch { return { xp: {}, logs: {} }; }
+}
+function saveState(s) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {}
+}
+
+function getLevel(xp) {
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (xp >= LEVEL_THRESHOLDS[i]) return i;
+  }
+  return 0;
+}
+
+let activePhase = "y1";
+let modalSkillId = null;
+let state = getState();
+
+function totalXP() { return Object.values(state.xp).reduce((a, b) => a + b, 0); }
+function totalAttempts() { return Object.values(state.logs).reduce((a, l) => a + l.length, 0); }
+function skillsLeveled() {
+  return [...CROSS, ...Object.values(SKILLS).flat()].filter(sk => (state.xp[sk.id] || 0) >= LEVEL_THRESHOLDS[1]).length;
+}
+
+function renderSummary() {
+  document.getElementById("summary-grid").innerHTML = `
+    <div class="stat-card"><div class="stat-num">${totalXP()}</div><div class="stat-lbl">Total XP</div></div>
+    <div class="stat-card"><div class="stat-num">${totalAttempts()}</div><div class="stat-lbl">Attempts logged</div></div>
+    <div class="stat-card"><div class="stat-num">${skillsLeveled()}</div><div class="stat-lbl">Skills leveled up</div></div>
+  `;
+}
+
+function renderTabs() {
+  document.getElementById("phase-tabs").innerHTML =
+    PHASES.map(p => `<button class="tab ${p.id === activePhase ? 'active' : ''}" onclick="switchPhase('${p.id}')">${p.label}</button>`).join("") +
+    `<button class="tab ${activePhase === 'cross' ? 'active' : ''}" onclick="switchPhase('cross')">Emotional skills</button>`;
+}
+
+function switchPhase(id) { activePhase = id; renderTabs(); renderPhaseDesc(); renderSkills(); }
+
+function renderPhaseDesc() {
+  const el = document.getElementById("phase-desc");
+  if (activePhase === "cross") {
+    el.textContent = "These skills matter across all three years. Track what you attempted, not how well it went — XP comes from trying.";
+  } else {
+    el.textContent = PHASES.find(p => p.id === activePhase)?.subtitle || "";
+  }
+}
+
+function renderSkills() {
+  const container = document.getElementById("skills-container");
+  const skills = activePhase === "cross" ? CROSS : (SKILLS[activePhase] || []);
+  container.innerHTML = "";
+
+  const label = document.createElement("div");
+  label.className = "section-label";
+  label.textContent = activePhase === "cross" ? "Emotional & social skills" : "Career skills — " + (PHASES.find(p => p.id === activePhase)?.label || "");
+  container.appendChild(label);
+
+  skills.forEach(sk => {
+    const xp = state.xp[sk.id] || 0;
+    const lvl = getLevel(xp);
+    const pct = Math.min(Math.round((xp / sk.max) * 100), 100);
+    const logs = (state.logs[sk.id] || []).slice(-3);
+
+    const card = document.createElement("div");
+    card.className = "skill-card";
+    card.innerHTML = `
+      <div class="skill-header">
+        <div>
+          <div class="skill-name">${sk.name}</div>
+          <div class="skill-meta">${sk.meta}</div>
+        </div>
+        <span class="level-badge" style="background:${sk.color}22;color:${sk.color}">${LEVEL_NAMES[lvl]}</span>
+      </div>
+      <div class="xp-row">
+        <div class="xp-bar-bg"><div class="xp-bar-fill" style="width:${pct}%;background:${sk.color}"></div></div>
+        <span class="xp-label">${xp} / ${sk.max} XP</span>
+      </div>
+      ${logs.map(l => `<div class="log-entry"><div class="log-date">${l.date} <span class="xp-gain">+${XP_PER} XP</span></div>${l.text}</div>`).join("")}
+      <button class="log-btn" onclick="openModal('${sk.id}')">+ Log attempt</button>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function openModal(skillId) {
+  const sk = [...CROSS, ...Object.values(SKILLS).flat()].find(s => s.id === skillId);
+  if (!sk) return;
+  modalSkillId = skillId;
+  document.getElementById("modal-title").textContent = sk.name;
+  document.getElementById("modal-prompt").textContent = sk.prompts[Math.floor(Math.random() * sk.prompts.length)];
+  document.getElementById("modal-input").value = "";
+  document.getElementById("modal").style.display = "flex";
+  setTimeout(() => document.getElementById("modal-input").focus(), 50);
+}
+
+function closeModal() { document.getElementById("modal").style.display = "none"; modalSkillId = null; }
+
+document.getElementById("modal").addEventListener("click", function(e) { if (e.target === this) closeModal(); });
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+function submitLog() {
+  const text = document.getElementById("modal-input").value.trim();
+  if (!text || !modalSkillId) return;
+  const sk = [...CROSS, ...Object.values(SKILLS).flat()].find(s => s.id === modalSkillId);
+  if (!sk) return;
+  state.xp[modalSkillId] = Math.min((state.xp[modalSkillId] || 0) + XP_PER, sk.max);
+  if (!state.logs[modalSkillId]) state.logs[modalSkillId] = [];
+  state.logs[modalSkillId].push({
+    date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    text
+  });
+  saveState(state);
+  closeModal();
+  renderSummary();
+  renderSkills();
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "character_sheet_backup_" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+}
+
+function importData() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (imported.xp && imported.logs) {
+          state = imported;
+          saveState(state);
+          renderSummary();
+          renderSkills();
+          alert("Data imported successfully.");
+        } else { alert("Invalid backup file."); }
+      } catch { alert("Could not read file."); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+renderSummary();
+renderTabs();
+renderPhaseDesc();
+renderSkills();
+</script>
+</body>
+</html>
